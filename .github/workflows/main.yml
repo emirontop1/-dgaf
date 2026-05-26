@@ -17,10 +17,9 @@ jobs:
       - name: Auto-Fetch Luau WASM
         run: |
           mkdir -p public
-          # Luau WASM ve JS dosyalarını resmi kaynaktan çek
-          curl -L https://github.com/luau-lang/luau/releases/latest/download/luau-web.js -o public/luau.js
-          curl -L https://github.com/luau-lang/luau/releases/latest/download/luau-web.wasm -o public/luau.wasm
-          # index.html dosyasını yayın klasörüne kopyala
+          # Linkleri güncelledik (Doğrudan indirme linkleri)
+          curl -L "https://github.com/luau-lang/luau/releases/latest/download/luau-web.js" -o public/luau.js
+          curl -L "https://github.com/luau-lang/luau/releases/latest/download/luau-web.wasm" -o public/luau.wasm
           cp index.html public/index.html
 
       - name: Upload Artifact
@@ -31,4 +30,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
