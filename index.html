@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head><title>Otomatik Luau VM</title></head>
+<body style="background:#111; color:#0f0; font-family:monospace;">
+    <div id="status">VM Yükleniyor...</div>
+    <button id="run" style="padding:10px; cursor:pointer;">Kodu Çalıştır</button>
+    <div id="log" style="margin-top:20px;"></div>
+
+    <script src="luau.js"></script>
+    <script>
+        Module().then(Luau => {
+            document.getElementById('status').innerText = "VM AKTİF - Luau WASM Hazır";
+            window.Luau = Luau;
+        });
+
+        document.getElementById('run').onclick = () => {
+            if(window.Luau) {
+                window.Luau.run("print('Otomatik sistemden selamlar!')");
+                document.getElementById('log').innerHTML += "> Kod çalıştırıldı.<br>";
+            }
+        };
+    </script>
+</body>
+</html>
+
