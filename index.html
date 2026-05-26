@@ -1,25 +1,241 @@
 <!DOCTYPE html>
-<html>
-<head><title>Otomatik Luau VM</title></head>
-<body style="background:#111; color:#0f0; font-family:monospace;">
-    <div id="status">VM Yükleniyor...</div>
-    <button id="run" style="padding:10px; cursor:pointer;">Kodu Çalıştır</button>
-    <div id="log" style="margin-top:20px;"></div>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Luau Web Executor</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121933;
+      --panel-2: #1a2447;
+      --text: #d6e3ff;
+      --muted: #8ea2d4;
+      --ok: #35d07f;
+      --warn: #ffd166;
+      --danger: #ff5d7a;
+      --line: #2b3868;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top, #1a2550 0%, var(--bg) 45%);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .grid {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: 1.2fr 1fr;
+    }
+    .panel {
+      background: linear-gradient(180deg, var(--panel), #0e1530);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      overflow: hidden;
+    }
+    .panel header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      background: var(--panel-2);
+      border-bottom: 1px solid var(--line);
+      font-size: 14px;
+      color: var(--muted);
+    }
+    textarea {
+      width: 100%;
+      min-height: 320px;
+      resize: vertical;
+      padding: 14px;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: #d9fff0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    .toolbar { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--line); }
+    button {
+      border: 1px solid var(--line);
+      background: #223166;
+      color: white;
+      border-radius: 10px;
+      padding: 9px 14px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover { filter: brightness(1.1); }
+    #status.ok { color: var(--ok); }
+    #status.warn { color: var(--warn); }
+    #console {
+      margin: 0;
+      padding: 12px 14px;
+      min-height: 180px;
+      max-height: 280px;
+      overflow: auto;
+      background: #0a1026;
+      border-top: 1px solid var(--line);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+    .gui-stage {
+      min-height: 250px;
+      margin: 0;
+      padding: 14px;
+      background: #0a1026;
+      position: relative;
+    }
+    .lua-gui {
+      position: absolute;
+      border: 1px solid #95aef2;
+      color: #fff;
+      background: rgba(88, 127, 248, .22);
+      backdrop-filter: blur(3px);
+      border-radius: 10px;
+      padding: 8px 10px;
+      box-shadow: 0 4px 15px rgba(0,0,0,.35);
+      white-space: pre-wrap;
+    }
+    .foot {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <h1>Luau Executor + Console + GUI Stage</h1>
+  <p style="color:var(--muted)">
+    Tamamen Luau VM mantığıyla çalışmak için <code>luau.js</code> ve <code>luau.wasm</code> dosyalarını repo köküne koy.
+    Bu arayüz sadece host görevini üstlenir.
+  </p>
 
-    <script src="luau.js"></script>
-    <script>
-        Module().then(Luau => {
-            document.getElementById('status').innerText = "VM AKTİF - Luau WASM Hazır";
-            window.Luau = Luau;
-        });
+  <div class="grid">
+    <section class="panel">
+      <header>
+        <strong>Luau Script</strong>
+        <span id="status" class="warn">VM hazırlanıyor...</span>
+      </header>
+      <textarea id="editor">print("Luau VM hazır!")
 
-        document.getElementById('run').onclick = () => {
-            if(window.Luau) {
-                window.Luau.run("print('Otomatik sistemden selamlar!')");
-                document.getElementById('log').innerHTML += "> Kod çalıştırıldı.<br>";
-            }
-        };
-    </script>
+Gui:create({
+  text = "Selam Lua GUI!",
+  x = 40,
+  y = 40,
+  w = 220,
+  h = 70,
+  background = "rgba(0,200,120,.25)"
+})</textarea>
+      <div class="toolbar">
+        <button id="runBtn">Çalıştır</button>
+        <button id="clearBtn">Temizle</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <header><strong>Executor Console</strong><span>stdout / stderr</span></header>
+      <pre id="console">[system] başlatılıyor...
+</pre>
+      <header><strong>GUI Stage</strong><span>Lua'dan gelen render</span></header>
+      <div class="gui-stage" id="stage"></div>
+    </section>
+  </div>
+  <div class="foot">Not: VM dosyaları yoksa demo fallback sadece bilgilendirme yapar.</div>
+
+  <script>
+    const statusEl = document.getElementById('status');
+    const consoleEl = document.getElementById('console');
+    const stageEl = document.getElementById('stage');
+    const editorEl = document.getElementById('editor');
+
+    const log = (msg, type = 'info') => {
+      const prefix = type === 'error' ? '[error]' : type === 'warn' ? '[warn]' : '[log]';
+      consoleEl.textContent += `${prefix} ${msg}\n`;
+      consoleEl.scrollTop = consoleEl.scrollHeight;
+    };
+
+    const GuiHost = {
+      create(opts = {}) {
+        const node = document.createElement('div');
+        node.className = 'lua-gui';
+        node.style.left = `${Number(opts.x || 0)}px`;
+        node.style.top = `${Number(opts.y || 0)}px`;
+        node.style.width = `${Number(opts.w || 180)}px`;
+        node.style.height = `${Number(opts.h || 60)}px`;
+        if (opts.background) node.style.background = String(opts.background);
+        node.textContent = String(opts.text || 'Lua GUI');
+        stageEl.appendChild(node);
+        log(`GUI eklendi: ${node.textContent}`);
+      },
+      clear() { stageEl.innerHTML = ''; }
+    };
+
+    function installHostBindings(vm) {
+      vm.register?.('print', (...args) => log(args.join(' ')));
+      vm.register?.('warn', (...args) => log(args.join(' '), 'warn'));
+      vm.registerGlobal?.('Gui', {
+        create: (tableLike) => GuiHost.create(tableLike),
+        clear: () => GuiHost.clear()
+      });
+    }
+
+    async function bootVm() {
+      if (typeof Module !== 'function') {
+        statusEl.textContent = 'VM dosyası bulunamadı (luau.js)';
+        statusEl.className = 'warn';
+        log('luau.js yüklenemedi. Repo köküne luau.js ve luau.wasm ekle.', 'warn');
+        return null;
+      }
+      try {
+        const vm = await Module();
+        installHostBindings(vm);
+        statusEl.textContent = 'VM aktif';
+        statusEl.className = 'ok';
+        log('Luau VM başarıyla yüklendi.');
+        return vm;
+      } catch (err) {
+        statusEl.textContent = 'VM başlatma hatası';
+        statusEl.className = 'warn';
+        log(`VM başlatılamadı: ${String(err)}`, 'error');
+        return null;
+      }
+    }
+
+    let vmInstance = null;
+
+    document.getElementById('runBtn').addEventListener('click', async () => {
+      if (!vmInstance) vmInstance = await bootVm();
+      GuiHost.clear();
+      const code = editorEl.value;
+      if (!vmInstance) {
+        log('VM yok. Kod çalıştırılamadı.', 'error');
+        return;
+      }
+      try {
+        vmInstance.run(code);
+        log('Script tamamlandı.');
+      } catch (err) {
+        log(`Runtime hata: ${String(err)}`, 'error');
+      }
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      consoleEl.textContent = '';
+      GuiHost.clear();
+      log('Console ve GUI temizlendi.');
+    });
+
+    // Luau VM entrypoint (repo'ya eklenmeli)
+  </script>
+  <script src="./luau.js"></script>
 </body>
 </html>
-
